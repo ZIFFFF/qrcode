@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>扫一扫</title>
+    <!-- 定制版 ionic 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/vonic@2.0.0-beta.11/dist/vonic.min.css">
+
+    <!-- 依赖库 axios/vue/vue-router -->
+    <script src="https://unpkg.com/axios@0.15.3/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue@2.1.10/dist/vue.min.js"></script>
+    <script src="https://unpkg.com/vue-router@2.2.1/dist/vue-router.min.js"></script>
+
+    <!-- vonic 核心文件 -->
+    <script src="https://unpkg.com/vonic@2.0.0-beta.11/dist/vonic.min.js"></script>
+    <script src="/js/jquery-3.4.1.min.js"></script>
+</head>
+
+<body>
+<div von-nav="" class="navbar visible" style="transition: all 400ms ease 0s; opacity: 1; position: absolute;">
+    <div class="navbar-container">
+        <div von-navbar="active" class="bar bar-header bar-transparent">
+            <div class="buttons">
+                <button class="button button-icon"><span><i
+                        class="icon ion-ios-arrow-back"></i></span></button>
+            </div>
+            <h1 class="title"
+                style="transition: all 0ms ease 0s; transform: translate3d(0px, 0px, 0px); opacity: 1;">
+                <span>设备详情</span></h1>
+            <!---->
+        </div>
+    </div>
+</div>
+<div class="page">
+    <div class="page-content padding-top">
+        <div class="von-input-wrapper">
+            <label class="item item-borderless item-input von-input">
+                <div class="hairline-top"></div>
+                <span class="input-label">设备编号</span>
+                <input type="text" placeholder="设备编号" id="no">
+                <div class="hairline-bottom"></div>
+            </label>
+        </div>
+        <div class="padding">
+            <button class="button button-balanced button-block" id="scan">扫面二维码</button>
+        </div>
+    </div>
+</div>
+<div von-modal="" class="modal-backdrop hide">
+    <div class="modal-backdrop-bg"></div>
+    <div class="modal-wrapper">
+        <div class="modal slide-in-up ng-enter ng-enter-active active">
+            <div class="bar bar-header bar-dark">
+                <h1 class="title">扫一扫</h1>
+                <button class="button button-icon icon ion-ios-close-empty"></button>
+            </div>
+            <div class="page-content padding padding-top">
+                <div class="container">
+                    <div id="content">
+                        <div class="word">
+                            <h2>TIPS:请将二维码对准窗口</h2>
+                            <div id="form">
+                                <form action="">
+                                    <div>
+                                        <video id="video" muted="muted" autoplay
+                                               style="width: 300px;height: 200px; margin: 20px auto;display: block;">
+                                        </video>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <canvas id="canvas" width="400px" height="300px" style="visibility: hidden"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+
+<script type="text/javascript">
+    window.onload = function() {
+        var no = window.sessionStorage.getItem("no");
+        if (no != null) {
+            $("#no").val(no);
+        }
+    }
+
+    $("#scan").click(function () {
+        $(".modal-backdrop").removeClass("hide").addClass("active");
+        getMedia();
+        window.setInterval("takePhoto()", 4000);
+    })
+
+    $(".ion-ios-close-empty").click(function () {
+        window.location.reload();
+    })
+
+    function getMedia() {
+        let constraints = {
+            video: {width: 300, height: 200},
+            audio: true
+        };
+        //获得video摄像头区域
+        let video = document.getElementById("video");
+        //这里介绍新的方法，返回一个 Promise对象
+        // 这个Promise对象返回成功后的回调函数带一个 MediaStream 对象作为其参数
+        // then()是Promise对象里的方法
+        // then()方法是异步执行，当then()前的方法执行完后再执行then()内部的程序
+        // 避免数据没有获取到
+        let promise = navigator.mediaDevices.getUserMedia(constraints);
+        promise.then(function (MediaStream) {
+            video.srcObject = MediaStream;
+            video.play();
+        });
+    }
+
+    function takePhoto() {
+        //获得Canvas对象
+        let video = document.getElementById("video");
+        let canvas = document.getElementById("canvas");
+        var f = video
+        let ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 400, 300);
+        var imgData = canvas.toDataURL("image/jpg");
+        var base64Data = imgData.split(",")[1];
+        var fd = new FormData();
+        fd.append('img', base64Data)
+        $.ajax({
+            type: "POST",
+            url: "/QRcodeDecode",
+            processData: false,  //tell jQuery not to process the data
+            contentType: false,  //tell jQuery not to set contentType
+            data: fd,
+            success: function (res) {
+                console.log(res)
+                if (res.status == 200) {
+                    window.sessionStorage.setItem("no", res.data);
+                    window.location.reload();
+                }
+            },
+            error: function (XMLHttpRequest, textStatus) {
+                // var txt4="<a >"+"请将书本条形码对准窗口："+"</a>";
+                // $("#resulttxt").html(txt4);
+                // alert(textStatus + ":" + XMLHttpRequest.status + " " + XMLHttpRequest.readyState);
+                console.log(textStatus + ":" + XMLHttpRequest.status + " " + XMLHttpRequest.readyState)
+            }
+        })
+    }
+</script>
+</html>
